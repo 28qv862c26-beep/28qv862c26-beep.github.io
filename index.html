@@ -1258,20 +1258,23 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
 
   el('gear').addEventListener('click', menuModal);
 
-  var timer = null, longPressed = false;
+  // долгое нажатие открывает карточку на правку. Клик, который прилетит следом
+  // при отпускании пальца, гасим по времени, а не флагом: если отпускание
+  // потерялось (свернули вкладку, сорвался жест), флаг залипал и съедал
+  // следующее нажатие на квест
+  var timer = null, muteClickUntil = 0;
   view.addEventListener('pointerdown', function(ev){
     var card = ev.target.closest('[data-q],[data-b],[data-s]');
     if (!card) return;
-    longPressed = false;
     timer = setTimeout(function(){
-      longPressed = true;
+      muteClickUntil = Date.now() + 700;
       buzz(14);
       var id;
       if ((id = card.getAttribute('data-q'))) questModal(find(S.quests, id));
       else if ((id = card.getAttribute('data-b'))) bossModal(find(S.bosses, id));
       else if ((id = card.getAttribute('data-s'))) {
         var it = find(S.shop, id);
-        if (it.kind === 'own') shopModal(it); else longPressed = false;
+        if (it.kind === 'own') shopModal(it); else muteClickUntil = 0;
       }
       if (veil) {
         veil.style.pointerEvents = 'none';
@@ -1287,7 +1290,7 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
   function find(arr, id){ return arr.filter(function(x){ return x.id === id; })[0]; }
 
   view.addEventListener('click', function(ev){
-    if (longPressed) { longPressed = false; return; }
+    if (Date.now() < muteClickUntil) { muteClickUntil = 0; return; }
 
     var add = ev.target.closest('[data-new]');
     if (add) {
