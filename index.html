@@ -1,0 +1,1355 @@
+<meta charset="utf-8">
+<title>ПРОКАЧКА</title>
+
+<style>
+:root{
+  color-scheme: dark;
+
+  --void:   #0B0D18;
+  --ink:    #141830;
+  --panel:  #1E2447;
+  --panel-2:#252C55;
+  --edge-hi:#4A55A8;
+  --edge-lo:#080A14;
+
+  --text:   #E9E9FF;
+  --muted:  #8F92C4;
+  --dim:    #5F6398;
+
+  --exp:    #6BE04A;
+  --hp:     #FF4757;
+  --coin:   #FFC53D;
+  --crit:   #FF6AD5;
+
+  --mono: ui-monospace, "SF Mono", Menlo, "Roboto Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+button, input{ font: inherit; color: inherit; }
+button{ touch-action: manipulation; cursor: pointer; border: 0; background: none; }
+:focus-visible{ outline: 2px solid var(--coin); outline-offset: 2px; }
+
+/* каркас в духе 16-битного интерфейса: жёсткие грани, никаких скруглений */
+.frame{
+  background: var(--panel);
+  box-shadow:
+    inset 2px 2px 0 0 var(--edge-hi),
+    inset -2px -2px 0 0 var(--edge-lo),
+    0 0 0 2px var(--void);
+}
+
+.app{
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 0 10px calc(30px + env(safe-area-inset-bottom));
+}
+.app.shake{ animation: shake .3s; }
+@keyframes shake{
+  10%,90%{ transform: translateX(-3px); }
+  30%,70%{ transform: translateX(5px); }
+  50%{ transform: translateX(-6px); }
+}
+
+/* ─── герой ──────────────────────────────────────── */
+
+.hero{
+  position: sticky; top: 0; z-index: 20;
+  margin: 0 -10px;
+  padding: calc(8px + env(safe-area-inset-top)) 10px 10px;
+  background: var(--void);
+}
+.hero-in{
+  display: flex; gap: 12px;
+  padding: 11px;
+}
+
+#face{
+  flex: none;
+  width: 74px; height: 74px;
+  image-rendering: pixelated;
+  background: #11142A;
+  box-shadow: inset 2px 2px 0 0 var(--edge-lo), inset -2px -2px 0 0 var(--edge-hi);
+}
+
+.hero-side{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.namerow{ display: flex; align-items: baseline; gap: 7px; }
+.namerow h1{
+  margin: 0; font-size: 15px; font-weight: 800; letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.namerow .rank{
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em;
+  color: var(--coin); white-space: nowrap;
+}
+.namerow .gear{ margin-left: auto; color: var(--dim); font-family: var(--mono); font-size: 15px; padding: 0 2px; }
+
+.gauge{ display: flex; align-items: center; gap: 6px; }
+.gauge .k{
+  flex: none; width: 24px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em; color: var(--dim);
+}
+.gauge .bar{
+  flex: 1; height: 11px; position: relative;
+  background: #0A0C1A;
+  box-shadow: inset 1px 1px 0 0 var(--edge-lo), inset -1px -1px 0 0 #2E3568;
+}
+.gauge .bar > span{
+  position: absolute; inset: 1px auto 1px 1px;
+  transition: width .45s cubic-bezier(.2,.9,.25,1);
+}
+.gauge .bar::after{
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 7px, rgba(0,0,0,.45) 7px 8px);
+  pointer-events: none;
+}
+.gauge .v{
+  flex: none;
+  font-family: var(--mono); font-size: 10px; font-variant-numeric: tabular-nums;
+  color: var(--muted); min-width: 62px; text-align: right;
+}
+
+.purse{
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.purse .coins{ color: var(--coin); font-weight: 700; }
+.purse .streak{ color: var(--hp); }
+.purse .streak.off{ color: var(--dim); }
+.purse .combo{ margin-left: auto; color: var(--crit); font-weight: 700; }
+
+.stats{
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+  margin-top: 8px;
+}
+.stats div{
+  padding: 5px 2px; text-align: center;
+  background: #171B36;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
+.stats .n{ display: block; font-size: 8px; letter-spacing: .06em; color: var(--dim); }
+.stats .l{ display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
+
+/* ─── вкладки ────────────────────────────────────── */
+
+.tabs{ display: flex; gap: 2px; margin: 10px 0; }
+.tabs button{
+  flex: 1; padding: 9px 2px;
+  background: var(--ink); color: var(--dim);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+  box-shadow: inset 1px 1px 0 0 #2E3568, inset -1px -1px 0 0 var(--edge-lo);
+}
+.tabs button[aria-selected="true"]{
+  background: var(--panel-2); color: var(--text);
+  box-shadow: inset 2px 2px 0 0 var(--edge-hi), inset -2px -2px 0 0 var(--edge-lo);
+}
+
+/* ─── карточки ───────────────────────────────────── */
+
+.list{ display: flex; flex-direction: column; gap: 8px; }
+
+.card{ padding: 10px 11px; position: relative; }
+.card .top{ display: flex; align-items: baseline; gap: 8px; }
+.card .ttl{ flex: 1; font-size: 14.5px; font-weight: 700; line-height: 1.25; }
+.card .stat{ font-family: var(--mono); font-size: 9px; letter-spacing: .08em; white-space: nowrap; }
+.card .loot{
+  display: flex; gap: 12px; margin-top: 6px;
+  font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums;
+}
+.card .loot .e{ color: var(--exp); }
+.card .loot .c{ color: var(--coin); }
+.card .loot .s{ color: var(--hp); margin-left: auto; }
+
+.hit{
+  display: block; width: 100%; margin-top: 8px; padding: 9px;
+  background: var(--panel-2); color: var(--text);
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; font-weight: 700;
+  box-shadow: inset 2px 2px 0 0 var(--edge-hi), inset -2px -2px 0 0 var(--edge-lo);
+}
+.hit:active{ box-shadow: inset -2px -2px 0 0 var(--edge-hi), inset 2px 2px 0 0 var(--edge-lo); }
+.hit.gold{ background: #6A5011; color: var(--coin); }
+.hit.dead{ background: #171B36; color: var(--dim); box-shadow: inset 2px 2px 0 0 #2A3060, inset -2px -2px 0 0 var(--edge-lo); }
+
+.card.cleared{ opacity: .5; }
+.card.cleared .ttl{ text-decoration: line-through; text-decoration-color: var(--dim); }
+
+.ribbon{
+  padding: 2px 6px;
+  background: var(--coin); color: #26190A;
+  font-family: var(--mono); font-size: 8.5px; font-weight: 700; letter-spacing: .08em;
+}
+
+.hpbar{ height: 9px; margin: 8px 0 6px; position: relative; background: #0A0C1A;
+  box-shadow: inset 1px 1px 0 0 var(--edge-lo), inset -1px -1px 0 0 #2E3568; }
+.hpbar span{ position: absolute; inset: 1px auto 1px 1px; background: var(--hp); transition: width .45s ease; }
+
+.add{
+  width: 100%; padding: 11px;
+  background: transparent; color: var(--dim);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.add:active{ color: var(--text); }
+
+.empty{ padding: 26px 14px; text-align: center; color: var(--dim); font-size: 13px; line-height: 1.5; }
+
+/* ─── журнал ─────────────────────────────────────── */
+
+.tiles{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.tiles div{ padding: 10px 6px; text-align: center; }
+.tiles .v{ font-family: var(--mono); font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tiles .k{ font-family: var(--mono); font-size: 8px; letter-spacing: .06em; color: var(--dim); margin-top: 3px; }
+
+.daygroup h3{
+  margin: 12px 0 6px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--dim); font-weight: 400;
+}
+.entry{
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid #1A1E3C;
+  font-size: 13px;
+}
+.entry .tm{ flex: none; width: 34px; font-family: var(--mono); font-size: 10px; color: var(--dim); }
+.entry .tx{ flex: 1; color: var(--muted); }
+.entry .am{ flex: none; font-family: var(--mono); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ─── окна ───────────────────────────────────────── */
+
+.veil{
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(5,6,14,.8);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal{
+  width: 100%; max-width: 460px;
+  max-height: 88vh; overflow-y: auto;
+  margin: 0 6px; padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  animation: up .2s;
+}
+@keyframes up{ from{ transform: translateY(24px); } }
+.modal h2{
+  margin: 0 0 14px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--coin);
+}
+.field{ margin-bottom: 12px; }
+.field label{ display: block; margin-bottom: 5px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; color: var(--dim); }
+.field input, .field textarea{
+  width: 100%; padding: 11px;
+  background: #0D1024; border: 0; font-size: 16px;
+  box-shadow: inset 2px 2px 0 0 var(--edge-lo), inset -2px -2px 0 0 #2E3568;
+}
+.field textarea{ font-family: var(--mono); font-size: 12px; min-height: 120px; }
+.field input:focus, .field textarea:focus{ outline: none; box-shadow: inset 0 0 0 2px var(--coin); }
+
+.chips{ display: flex; flex-wrap: wrap; gap: 5px; }
+.chip{
+  padding: 8px 10px; background: #171B36; color: var(--muted);
+  font-family: var(--mono); font-size: 10.5px;
+  box-shadow: inset 1px 1px 0 0 #2E3568, inset -1px -1px 0 0 var(--edge-lo);
+}
+.chip[aria-pressed="true"]{ background: var(--panel-2); color: var(--cc, var(--coin)); box-shadow: inset 0 0 0 2px var(--cc, var(--coin)); }
+
+.acts{ display: flex; gap: 6px; margin-top: 16px; }
+.acts .hit{ margin-top: 0; }
+.acts .hit.kill{ flex: none; width: 48px; color: var(--hp); }
+
+.menu{ display: flex; flex-direction: column; gap: 4px; }
+.menu button{
+  padding: 13px 11px; text-align: left; font-size: 14.5px;
+  background: #171B36;
+  box-shadow: inset 1px 1px 0 0 #2E3568, inset -1px -1px 0 0 var(--edge-lo);
+}
+.menu button.warn{ color: var(--hp); }
+
+/* ─── эффекты ────────────────────────────────────── */
+
+#fx{ position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
+
+.float{
+  position: absolute;
+  font-family: var(--mono); font-size: 15px; font-weight: 700;
+  text-shadow: 0 2px 0 rgba(0,0,0,.6);
+  animation: float 1.1s cubic-bezier(.2,.8,.3,1) forwards;
+  white-space: nowrap;
+}
+@keyframes float{
+  0%{ transform: translateY(4px) scale(.7); opacity: 0; }
+  15%{ transform: translateY(-6px) scale(1.15); opacity: 1; }
+  100%{ transform: translateY(-64px) scale(1); opacity: 0; }
+}
+
+.bigmsg{
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(6,7,16,.9);
+  animation: fadeout 2s forwards;
+}
+.bigmsg .in{ text-align: center; padding: 20px 26px; animation: pop .45s cubic-bezier(.2,1.6,.4,1); }
+.bigmsg .k{ font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--muted); }
+.bigmsg .v{ font-size: 46px; font-weight: 800; line-height: 1.1; margin-top: 8px; letter-spacing: -.02em; }
+.bigmsg .sub{ font-family: var(--mono); font-size: 12px; margin-top: 10px; color: var(--coin); }
+@keyframes pop{ from{ transform: scale(.5); opacity: 0; } }
+@keyframes fadeout{ 0%,72%{ opacity: 1; } 100%{ opacity: 0; } }
+
+.toast{
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 90;
+  padding: 10px 14px; font-size: 13px;
+  animation: tin .18s, tout .3s 2.1s forwards;
+}
+@keyframes tin{ from{ opacity: 0; } }
+@keyframes tout{ to{ opacity: 0; } }
+
+.warnbar{
+  margin-top: 10px; padding: 10px 12px;
+  background: #3A1620; color: #FFB3BC;
+  font-size: 12.5px; line-height: 1.45;
+  box-shadow: inset 2px 2px 0 0 #6A2635, inset -2px -2px 0 0 var(--edge-lo);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div class="app" id="app">
+  <header class="hero">
+    <div class="hero-in frame">
+      <canvas id="face" width="16" height="16"></canvas>
+      <div class="hero-side">
+        <div class="namerow">
+          <h1 id="hname">ГЕРОЙ</h1>
+          <span class="rank" id="hrank">НОВОБРАНЕЦ</span>
+          <button class="gear" id="gear" aria-label="Меню">⋮</button>
+        </div>
+        <div class="gauge">
+          <span class="k">HP</span>
+          <span class="bar"><span id="hpfill" style="background:var(--hp);width:100%"></span></span>
+          <span class="v" id="hpval">100/100</span>
+        </div>
+        <div class="gauge">
+          <span class="k">EXP</span>
+          <span class="bar"><span id="xpfill" style="background:var(--exp);width:0%"></span></span>
+          <span class="v" id="xpval">0/100</span>
+        </div>
+        <div class="purse">
+          <span class="coins" id="coins">0</span>
+          <span class="streak" id="streak">серия 0</span>
+          <span class="combo" id="combo"></span>
+        </div>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="quests" aria-selected="true">КВЕСТЫ</button>
+    <button role="tab" data-tab="bosses" aria-selected="false">БОССЫ</button>
+    <button role="tab" data-tab="shop"   aria-selected="false">ЛАВКА</button>
+    <button role="tab" data-tab="log"    aria-selected="false">ЖУРНАЛ</button>
+  </nav>
+
+  <main id="view"></main>
+</div>
+
+<div id="fx"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  if (!document.querySelector('meta[name="viewport"]')) {
+    var mv = document.createElement('meta');
+    mv.name = 'viewport';
+    mv.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+    document.head.appendChild(mv);
+  }
+
+  /* ── правила игры ───────────────────────────────── */
+
+  var STATS = {
+    body:   { name: 'ТЕЛО',  color: '#FF6B5A' },
+    mind:   { name: 'УМ',    color: '#56B6FF' },
+    work:   { name: 'ДЕЛО',  color: '#A98BFF' },
+    soul:   { name: 'ДУХ',   color: '#39D6A5' },
+    people: { name: 'ЛЮДИ',  color: '#FF8FD0' }
+  };
+  var STAT_KEYS = Object.keys(STATS);
+
+  var RANKS = [
+    { at: 1,  name: 'НОВОБРАНЕЦ', armor: ['#7B8199', '#A8AEC6', '#4C5169'], plume: '#C2453F' },
+    { at: 3,  name: 'ОРУЖЕНОСЕЦ', armor: ['#9C6B3F', '#C89463', '#6A4526'], plume: '#E0703A' },
+    { at: 6,  name: 'РЫЦАРЬ',     armor: ['#8FA0C4', '#C3D0EC', '#5A6788'], plume: '#4F7BE0' },
+    { at: 10, name: 'ВИТЯЗЬ',     armor: ['#4FA9A0', '#7FE0D4', '#2E6C67'], plume: '#3FBF8F' },
+    { at: 15, name: 'МАСТЕР',     armor: ['#C9A227', '#F3D35C', '#8A6B12'], plume: '#FF7A45' },
+    { at: 25, name: 'ЧЕМПИОН',    armor: ['#9B4DE0', '#C68BFF', '#632E92'], plume: '#FF5BD0' },
+    { at: 40, name: 'ЛЕГЕНДА',    armor: ['#FF5B5B', '#FF9A6B', '#A62F3C'], plume: '#FFD34E' }
+  ];
+
+  var HERO_NEED = function(l){ return 100 + 60 * (l - 1); };
+  var STAT_NEED = function(l){ return 80 + 50 * (l - 1); };
+
+  var CRIT_CHANCE  = 0.18;   // шанс критического удара
+  var LOOT_CHANCE  = 0.25;   // шанс сундука
+  var POTION_CHANCE= 0.08;   // шанс, что в сундуке зелье
+  var MISS_DAMAGE  = 15;     // урон за каждый пропущенный день
+  var MAX_CATCHUP  = 3;      // максимум пропущенных дней, за которые бьёт
+  var PERFECT_HEAL = 15;
+  var PERFECT_XP   = 25;
+  var PERFECT_COIN = 20;
+  var POTION_HEAL  = 30;
+  var DAILY_BONUS  = 1.5;    // множитель задания дня
+
+  function comboMult(doneToday){
+    if (doneToday >= 4) return 2;
+    if (doneToday === 3) return 1.5;
+    if (doneToday === 2) return 1.2;
+    return 1;
+  }
+
+  /* ── стартовое состояние ────────────────────────── */
+
+  function seed(){
+    return {
+      v: 2,
+      hero: { name: 'ГЕРОЙ', xp: 0, total: 0, hp: 100, hpMax: 100, coins: 0, shield: 0 },
+      stats: { body: 0, mind: 0, work: 0, soul: 0, people: 0 },
+      quests: [
+        { id: 'q1', title: 'Тренировка или 10 000 шагов',    stat: 'body',   xp: 25 },
+        { id: 'q2', title: 'Лечь до часу ночи',              stat: 'body',   xp: 15 },
+        { id: 'q3', title: 'Час работы без телефона',        stat: 'work',   xp: 30 },
+        { id: 'q4', title: 'Идея или факт в копилку канала', stat: 'work',   xp: 15 },
+        { id: 'q5', title: '10 страниц книги',               stat: 'mind',   xp: 15 },
+        { id: 'q6', title: 'Утро без ленты',                 stat: 'soul',   xp: 15 },
+        { id: 'q7', title: 'Написать своим',                 stat: 'people', xp: 10 }
+      ].map(function(q){ q.doneOn = null; q.streak = 0; return q; }),
+      bosses: [
+        { id: 'b1', title: '500 подписчиков',      stat: 'work', target: 500,     current: 0, unit: 'подписчиков', xp: 500,  coins: 300, done: false },
+        { id: 'b2', title: '3 000 000 просмотров', stat: 'work', target: 3000000, current: 0, unit: 'просмотров',  xp: 1000, coins: 600, done: false },
+        { id: 'b3', title: '100 тренировок',       stat: 'body', target: 100,     current: 0, unit: 'тренировок',  xp: 400,  coins: 250, done: false }
+      ],
+      shop: [
+        { id: 's1', title: 'Зелье здоровья', price: 60,  kind: 'potion' },
+        { id: 's2', title: 'Оберег серии',   price: 250, kind: 'shield' },
+        { id: 's3', title: 'Пицца вечером',  price: 300, kind: 'own' },
+        { id: 's4', title: 'Выходной без чувства вины', price: 900, kind: 'own' }
+      ],
+      log: [],
+      day: { streak: 0, best: 0, lastDay: null, prevDay: null, prevStreak: 0, prevBest: 0, count: 0, perfectOn: null, checkedOn: null },
+      sound: true
+    };
+  }
+
+  /* ── хранилище ──────────────────────────────────── */
+
+  var KEY = 'prokachka.v2';
+  var storageOk = true;
+  var S;
+
+  try {
+    localStorage.setItem(KEY + '.probe', '1');
+    localStorage.removeItem(KEY + '.probe');
+  } catch (e) { storageOk = false; }
+
+  function load(){
+    if (!storageOk) return seed();
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return seed();
+      var d = JSON.parse(raw);
+      var base = seed();
+      for (var k in base) if (!(k in d)) d[k] = base[k];
+      for (var h in base.hero) if (!(h in d.hero)) d.hero[h] = base.hero[h];
+      return d;
+    } catch (e) { return seed(); }
+  }
+
+  function save(){
+    if (!storageOk) return;
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { storageOk = false; }
+  }
+
+  S = load();
+
+  /* ── даты ───────────────────────────────────────── */
+
+  function ymd(d){
+    d = d || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function shift(s, n){
+    var p = s.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + n);
+    return ymd(d);
+  }
+  function daysBetween(a, b){
+    var pa = a.split('-'), pb = b.split('-');
+    return Math.round((new Date(+pb[0], +pb[1]-1, +pb[2]) - new Date(+pa[0], +pa[1]-1, +pa[2])) / 864e5);
+  }
+  var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  function humanDay(s){
+    var t = ymd();
+    if (s === t) return 'СЕГОДНЯ';
+    if (s === shift(t, -1)) return 'ВЧЕРА';
+    var p = s.split('-');
+    return (+p[2]) + ' ' + MONTHS[+p[1] - 1];
+  }
+  function plural(n, one, few, many){
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b > 1 && b < 5) return few;
+    if (b === 1) return one;
+    return many;
+  }
+  function num(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){ return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]; });
+  }
+
+  /* ── уровни и ранги ─────────────────────────────── */
+
+  function levelOf(xp, need){
+    var lv = 1, left = xp;
+    while (left >= need(lv)) { left -= need(lv); lv++; }
+    return { level: lv, into: left, need: need(lv) };
+  }
+  function rankOf(level){
+    var r = RANKS[0];
+    for (var i = 0; i < RANKS.length; i++) if (level >= RANKS[i].at) r = RANKS[i];
+    return r;
+  }
+
+  /* ── звук ───────────────────────────────────────── */
+
+  var actx = null;
+  function audio(){
+    if (!S.sound) return null;
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      return actx;
+    } catch (e) { return null; }
+  }
+  function tone(freq, start, dur, type, vol){
+    var a = audio(); if (!a) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime + start);
+    g.gain.setValueAtTime(0.0001, a.currentTime + start);
+    g.gain.exponentialRampToValueAtTime(vol || 0.06, a.currentTime + start + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + start + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(a.currentTime + start); o.stop(a.currentTime + start + dur + 0.02);
+  }
+  var SFX = {
+    hit:   function(){ tone(180, 0, .09, 'square', .05); tone(320, .04, .1, 'square', .05); },
+    crit:  function(){ [440, 660, 880, 1180].forEach(function(f, i){ tone(f, i * .05, .12, 'square', .06); }); },
+    coin:  function(){ tone(988, 0, .07, 'square', .05); tone(1319, .06, .12, 'square', .05); },
+    level: function(){ [523, 659, 784, 1047, 1319].forEach(function(f, i){ tone(f, i * .09, .22, 'triangle', .07); }); },
+    hurt:  function(){ tone(220, 0, .18, 'sawtooth', .06); tone(110, .1, .3, 'sawtooth', .06); },
+    buy:   function(){ tone(660, 0, .08, 'triangle', .06); tone(880, .07, .14, 'triangle', .06); }
+  };
+  function buzz(p){ if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} } }
+
+  /* ── аватар ─────────────────────────────────────── */
+
+  var SPRITE = [
+    '................',
+    '......CCCC......',
+    '.....LCCCCL.....',
+    '....LMMMMMML....',
+    '....LMHHHHML....',
+    '....LMggggML....',
+    '....LMMMMMML....',
+    '.....LMMMML.....',
+    '..LPPMMMMMMPPL..',
+    '..LPMMHHHHMMPL..',
+    '..LPMMMMMMMMPL..',
+    '..LLMMMMMMMMLL..',
+    '...LMMMMMMMML...',
+    '...LMML..LMML...',
+    '...LMML..LMML...',
+    '...LLLL..LLLL...'
+  ];
+  function drawFace(){
+    var cv = document.getElementById('face');
+    var ctx = cv.getContext('2d');
+    var r = rankOf(levelOf(S.hero.xp, HERO_NEED).level);
+    var pal = {
+      L: '#0A0C18',        // контур
+      M: r.armor[0],       // броня
+      H: r.armor[1],       // блик
+      P: r.armor[2],       // наплечники
+      C: r.plume,          // гребень шлема
+      g: '#0D0F1E'         // прорезь визора
+    };
+    ctx.clearRect(0, 0, 16, 16);
+    for (var y = 0; y < 16; y++) {
+      for (var x = 0; x < 16; x++) {
+        var c = SPRITE[y][x];
+        if (c === '.') continue;
+        ctx.fillStyle = pal[c] || '#fff';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  /* ── начисления ─────────────────────────────────── */
+
+  function addXp(amount, statKey, text){
+    var before = levelOf(S.hero.xp, HERO_NEED).level;
+    S.hero.xp = Math.max(0, S.hero.xp + amount);
+    S.hero.total = Math.max(0, S.hero.total + amount);
+    if (statKey) S.stats[statKey] = Math.max(0, (S.stats[statKey] || 0) + amount);
+    if (text) logAdd(text, amount, 0);
+    return levelOf(S.hero.xp, HERO_NEED).level - before;
+  }
+  function addCoins(n){ S.hero.coins = Math.max(0, S.hero.coins + n); }
+  function heal(n){ S.hero.hp = Math.min(S.hero.hpMax, S.hero.hp + n); }
+  function logAdd(text, xp, coins){
+    S.log.unshift({ t: Date.now(), text: text, xp: xp || 0, coins: coins || 0 });
+    if (S.log.length > 400) S.log.length = 400;
+  }
+
+  /* ── урон за пропуски ───────────────────────────── */
+
+  function applyMissedDays(){
+    var today = ymd();
+    if (S.day.checkedOn === today) return;
+    var from = S.day.checkedOn || S.day.lastDay;
+    S.day.checkedOn = today;
+    if (!from || from === today) { save(); return; }
+
+    // дни между последним закрытым квестом и сегодня, в которые ничего не сделано
+    var missed = Math.min(MAX_CATCHUP, Math.max(0, daysBetween(S.day.lastDay || from, today) - 1));
+    if (!missed) { save(); return; }
+
+    if (S.hero.shield > 0) {
+      S.hero.shield--;
+      // серия не рвётся: считаем, что вчера герой был в строю
+      var was = S.day.lastDay;
+      S.quests.forEach(function(q){ if (q.doneOn === was) q.doneOn = shift(today, -1); });
+      S.day.lastDay = shift(today, -1);
+      logAdd('Оберег погасил пропуск', 0, 0);
+      save();
+      pendingIntro = { kind: 'shield', days: missed };
+      return;
+    }
+
+    var dmg = missed * MISS_DAMAGE;
+    S.hero.hp -= dmg;
+    S.day.streak = 0;
+    logAdd('Пропущено ' + missed + ' ' + plural(missed, 'день', 'дня', 'дней') + ' — урон ' + dmg, 0, 0);
+
+    var fell = false;
+    if (S.hero.hp <= 0) {
+      fell = true;
+      var lv = levelOf(S.hero.xp, HERO_NEED);
+      S.hero.xp = Math.max(0, S.hero.xp - Math.round(lv.into * 0.5));
+      S.hero.hp = Math.round(S.hero.hpMax / 2);
+      logAdd('Герой пал и поднялся с половиной сил', 0, 0);
+    }
+    save();
+    pendingIntro = { kind: fell ? 'fell' : 'hurt', days: missed, dmg: dmg };
+  }
+
+  var pendingIntro = null;
+
+  /* ── удар по квесту ─────────────────────────────── */
+
+  function dailyQuestId(){
+    if (!S.quests.length) return null;
+    var t = ymd(), h = 0;
+    for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 100000;
+    return S.quests[h % S.quests.length].id;
+  }
+
+  function strike(q, node){
+    var today = ymd();
+    if (q.doneOn === today) return;
+
+    var doneBefore = S.quests.filter(function(x){ return x.doneOn === today; }).length;
+    var mult = comboMult(doneBefore + 1);
+    var isDaily = q.id === dailyQuestId();
+    if (isDaily) mult *= DAILY_BONUS;
+    var crit = Math.random() < CRIT_CHANCE;
+    if (crit) mult *= 2;
+
+    var xp = Math.round(q.xp * mult);
+    var coins = Math.round(q.xp / 2 * mult);
+
+    q.streak = (q.doneOn === shift(today, -1)) ? q.streak + 1 : 1;
+    q.doneOn = today;
+
+    if (S.day.lastDay !== today) {
+      S.day.prevDay = S.day.lastDay;
+      S.day.prevStreak = S.day.streak;
+      S.day.prevBest = S.day.best || 0;
+      S.day.streak = (S.day.lastDay === shift(today, -1)) ? S.day.streak + 1 : 1;
+      S.day.best = Math.max(S.day.best || 0, S.day.streak);
+      S.day.lastDay = today;
+      S.day.count = 0;
+    }
+    S.day.count++;
+
+    var jumped = addXp(xp, q.stat, q.title + (crit ? ' (крит)' : ''));
+    addCoins(coins);
+    S.log[0].coins = coins;
+
+    buzz(crit ? [14, 40, 22] : 10);
+    if (crit) { SFX.crit(); shakeScreen(); } else { SFX.hit(); }
+    floatText(node, (crit ? 'КРИТ! ' : '') + '+' + xp + ' EXP', crit ? 'var(--crit)' : 'var(--exp)', 0);
+    floatText(node, '+' + coins + '  монет', 'var(--coin)', 26);
+
+    // сундук
+    if (Math.random() < LOOT_CHANCE) {
+      if (Math.random() < POTION_CHANCE) {
+        heal(POTION_HEAL);
+        logAdd('Из сундука выпало зелье, +' + POTION_HEAL + ' HP', 0, 0);
+        floatText(node, '+' + POTION_HEAL + ' HP', 'var(--hp)', 52);
+      } else {
+        var bonus = 10 + Math.floor(Math.random() * 31);
+        addCoins(bonus);
+        logAdd('Сундук', 0, bonus);
+        floatText(node, 'СУНДУК +' + bonus, 'var(--coin)', 52);
+      }
+      SFX.coin();
+    }
+
+    // все квесты закрыты
+    if (allDone() && S.day.perfectOn !== today) {
+      S.day.perfectOn = today;
+      jumped += addXp(PERFECT_XP, null, 'Все квесты закрыты');
+      addCoins(PERFECT_COIN);
+      S.log[0].coins = PERFECT_COIN;
+      heal(PERFECT_HEAL);
+      SFX.coin();
+      toast('День зачищен: +' + PERFECT_XP + ' EXP, +' + PERFECT_COIN + ' монет, +' + PERFECT_HEAL + ' HP');
+    }
+
+    render(); save();
+    if (jumped > 0) {
+      SFX.level();
+      var lv = levelOf(S.hero.xp, HERO_NEED).level;
+      bigMessage('НОВЫЙ УРОВЕНЬ', String(lv), rankOf(lv).name);
+    }
+  }
+
+  function unstrike(q){
+    var today = ymd();
+    if (q.doneOn !== today) return;
+    // отменяем последнюю запись про этот квест и снимаем выданное
+    for (var i = 0; i < S.log.length; i++) {
+      var e = S.log[i];
+      if (e.text === q.title || e.text === q.title + ' (крит)') {
+        addXp(-e.xp, q.stat, null);
+        addCoins(-(e.coins || 0));
+        S.log.splice(i, 1);
+        break;
+      }
+    }
+    if (S.day.perfectOn === today) {
+      S.day.perfectOn = null;
+      addXp(-PERFECT_XP, null, null);
+      addCoins(-PERFECT_COIN);
+      for (var j = 0; j < S.log.length; j++) {
+        if (S.log[j].text === 'Все квесты закрыты') { S.log.splice(j, 1); break; }
+      }
+    }
+    q.doneOn = (q.streak > 1) ? shift(today, -1) : null;
+    q.streak = Math.max(0, q.streak - 1);
+    S.day.count = Math.max(0, S.day.count - 1);
+    if (S.day.count === 0 && S.day.lastDay === today) {
+      S.day.streak = S.day.prevStreak || 0;
+      S.day.best = S.day.prevBest || 0;
+      S.day.lastDay = S.day.prevDay || null;
+    }
+    render(); save();
+  }
+
+  function allDone(){
+    var t = ymd();
+    return S.quests.length >= 3 && S.quests.every(function(x){ return x.doneOn === t; });
+  }
+
+  /* ── боссы ──────────────────────────────────────── */
+
+  function hitBoss(b, amount, node){
+    if (b.done || !amount) return;
+    b.current = Math.max(0, Math.min(b.target, b.current + amount));
+    var jumped = 0;
+    if (b.current >= b.target) {
+      b.done = true;
+      jumped = addXp(b.xp, b.stat, 'Босс повержен: ' + b.title);
+      addCoins(b.coins);
+      S.log[0].coins = b.coins;
+      SFX.crit(); shakeScreen();
+      floatText(node, '+' + b.xp + ' EXP', 'var(--crit)', 0);
+    } else {
+      logAdd(b.title + ' · +' + num(amount) + ' ' + (b.unit || ''), 0, 0);
+      SFX.hit();
+      floatText(node, '-' + num(amount), 'var(--hp)', 0);
+    }
+    buzz(12);
+    render(); save();
+    if (b.done) bigMessage('БОСС ПОВЕРЖЕН', b.title, '+' + b.xp + ' EXP · +' + b.coins + ' монет');
+    if (jumped > 0) { SFX.level(); }
+  }
+
+  /* ── лавка ──────────────────────────────────────── */
+
+  function buy(item, node){
+    if (S.hero.coins < item.price) { toast('Не хватает ' + (item.price - S.hero.coins) + ' монет'); return; }
+    if (item.kind === 'potion' && S.hero.hp >= S.hero.hpMax) { toast('HP и так полное'); return; }
+    addCoins(-item.price);
+    if (item.kind === 'potion') { heal(POTION_HEAL); logAdd('Куплено зелье, +' + POTION_HEAL + ' HP', 0, -item.price); }
+    else if (item.kind === 'shield') { S.hero.shield++; logAdd('Куплен оберег серии', 0, -item.price); }
+    else { logAdd('Награда: ' + item.title, 0, -item.price); }
+    SFX.buy(); buzz(10);
+    floatText(node, '-' + item.price, 'var(--coin)', 0);
+    toast(item.kind === 'own' ? 'Заслужил. Иди забирай.' : 'Куплено');
+    render(); save();
+  }
+
+  /* ── эффекты ────────────────────────────────────── */
+
+  var fx = document.getElementById('fx');
+
+  function floatText(node, text, color, offset){
+    if (!node) return;
+    var r = node.getBoundingClientRect();
+    var n = document.createElement('div');
+    n.className = 'float';
+    n.textContent = text;
+    n.style.color = color;
+    n.style.left = Math.max(8, Math.round(r.left + r.width / 2 - 50)) + 'px';
+    n.style.top = Math.round(r.top + 14 + (offset || 0)) + 'px';
+    fx.appendChild(n);
+    setTimeout(function(){ n.remove(); }, 1100);
+  }
+
+  function shakeScreen(){
+    var a = document.getElementById('app');
+    a.classList.remove('shake');
+    void a.offsetWidth;
+    a.classList.add('shake');
+    setTimeout(function(){ a.classList.remove('shake'); }, 320);
+  }
+
+  function bigMessage(k, v, sub, color){
+    var n = document.createElement('div');
+    n.className = 'bigmsg';
+    n.innerHTML = '<div class="in"><div class="k">' + esc(k) + '</div>' +
+      '<div class="v" style="color:' + (color || 'var(--coin)') + '">' + esc(v) + '</div>' +
+      (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>';
+    fx.appendChild(n);
+    setTimeout(function(){ n.remove(); }, 2000);
+  }
+
+  function toast(text){
+    var n = document.createElement('div');
+    n.className = 'toast frame';
+    n.textContent = text;
+    document.body.appendChild(n);
+    setTimeout(function(){ n.remove(); }, 2500);
+  }
+
+  /* ── отрисовка ──────────────────────────────────── */
+
+  var tab = 'quests';
+  var view = document.getElementById('view');
+  function el(id){ return document.getElementById(id); }
+
+  function renderHero(){
+    var h = levelOf(S.hero.xp, HERO_NEED);
+    var r = rankOf(h.level);
+    el('hname').textContent = S.hero.name;
+    el('hrank').textContent = r.name + ' · ' + h.level;
+    el('hpval').textContent = Math.max(0, S.hero.hp) + '/' + S.hero.hpMax;
+    el('hpfill').style.width = Math.max(0, Math.min(100, S.hero.hp / S.hero.hpMax * 100)) + '%';
+    el('xpval').textContent = num(h.into) + '/' + num(h.need);
+    el('xpfill').style.width = Math.round(h.into / h.need * 100) + '%';
+    el('coins').textContent = num(S.hero.coins) + ' монет' + (S.hero.shield ? ' · оберегов ' + S.hero.shield : '');
+
+    var today = ymd();
+    var live = S.day.lastDay === today || S.day.lastDay === shift(today, -1);
+    var st = live ? S.day.streak : 0;
+    el('streak').className = 'streak' + (st ? '' : ' off');
+    el('streak').textContent = 'серия ' + st;
+
+    var doneToday = S.quests.filter(function(q){ return q.doneOn === today; }).length;
+    var next = comboMult(doneToday + 1);
+    el('combo').textContent = doneToday && next > 1 ? 'КОМБО x' + next : '';
+
+    el('stats').innerHTML = STAT_KEYS.map(function(k){
+      var s = levelOf(S.stats[k] || 0, STAT_NEED);
+      return '<div><span class="n">' + STATS[k].name + '</span>' +
+        '<span class="l" style="color:' + STATS[k].color + '">' + s.level + '</span></div>';
+    }).join('');
+
+    drawFace();
+  }
+
+  function renderQuests(){
+    var today = ymd();
+    var dq = dailyQuestId();
+    var doneToday = S.quests.filter(function(q){ return q.doneOn === today; }).length;
+    var mult = comboMult(doneToday + 1);
+    var html = '<div class="list">';
+
+    S.quests.forEach(function(q){
+      var done = q.doneOn === today;
+      var c = STATS[q.stat].color;
+      var isDaily = q.id === dq;
+      var m = mult * (isDaily ? DAILY_BONUS : 1);
+      var xp = Math.round(q.xp * m), coins = Math.round(q.xp / 2 * m);
+      html += '<div class="card frame' + (done ? ' cleared' : '') + '" data-q="' + q.id + '">' +
+        '<div class="top"><span class="ttl">' + esc(q.title) + '</span>' +
+        '<span class="stat" style="color:' + c + '">' + STATS[q.stat].name + '</span></div>' +
+        '<div class="loot"><span class="e">+' + xp + ' EXP</span><span class="c">+' + coins + ' монет</span>' +
+        (isDaily && !done ? '<span class="ribbon">ЗАДАНИЕ ДНЯ x' + DAILY_BONUS + '</span>' : '') +
+        (q.streak > 1 && (done || q.doneOn === shift(today, -1)) ? '<span class="s">серия ' + q.streak + '</span>' : '') +
+        '</div>' +
+        '<button class="hit' + (done ? ' dead' : '') + '">' + (done ? 'ОТМЕНИТЬ' : 'ВЫПОЛНИТЬ') + '</button>' +
+        '</div>';
+    });
+
+    html += '<button class="add" data-new="quest">+ НОВЫЙ КВЕСТ</button></div>';
+    if (!storageOk) html += '<div class="warnbar">Тут браузер не даёт сохранять прогресс. Открой страницу в обычной вкладке Safari или Chrome.</div>';
+    view.innerHTML = html;
+  }
+
+  function renderBosses(){
+    var html = '<div class="list">';
+    if (!S.bosses.length) html += '<div class="empty">Босс — это большая цель с числом.<br>500 подписчиков, 100 тренировок, 30 дней без сахара.</div>';
+    S.bosses.forEach(function(b){
+      var c = STATS[b.stat].color;
+      var left = Math.max(0, b.target - b.current);
+      var pct = Math.min(100, Math.round(b.current / b.target * 100));
+      html += '<div class="card frame' + (b.done ? ' cleared' : '') + '" data-b="' + b.id + '">' +
+        '<div class="top"><span class="ttl">' + esc(b.title) + '</span>' +
+        '<span class="stat" style="color:' + c + '">' + STATS[b.stat].name + '</span></div>' +
+        '<div class="hpbar"><span style="width:' + (100 - pct) + '%"></span></div>' +
+        '<div class="loot"><span class="e">осталось ' + num(left) + ' ' + esc(b.unit || '') + '</span>' +
+        '<span class="c">' + (b.done ? 'ПОВЕРЖЕН' : '+' + b.xp + ' EXP · +' + b.coins + ' монет') + '</span></div>' +
+        '<button class="hit' + (b.done ? ' dead' : '') + '">' + (b.done ? 'ИЗМЕНИТЬ' : 'УДАРИТЬ') + '</button>' +
+        '</div>';
+    });
+    html += '<button class="add" data-new="boss">+ НОВЫЙ БОСС</button></div>';
+    view.innerHTML = html;
+  }
+
+  function renderShop(){
+    var html = '<div class="list">';
+    S.shop.forEach(function(it){
+      var full = it.kind === 'potion' && S.hero.hp >= S.hero.hpMax;
+      var can = S.hero.coins >= it.price && !full;
+      var label = full ? 'HP И ТАК ПОЛНОЕ' : (can ? 'КУПИТЬ' : 'НЕ ХВАТАЕТ МОНЕТ');
+      var note = it.kind === 'potion' ? '+' + POTION_HEAL + ' HP'
+               : it.kind === 'shield' ? 'гасит один пропуск дня'
+               : 'награда себе';
+      html += '<div class="card frame" data-s="' + it.id + '">' +
+        '<div class="top"><span class="ttl">' + esc(it.title) + '</span>' +
+        '<span class="stat" style="color:var(--coin)">' + num(it.price) + '</span></div>' +
+        '<div class="loot"><span class="e" style="color:var(--muted)">' + note + '</span></div>' +
+        '<button class="hit' + (can ? ' gold' : ' dead') + '">' + label + '</button>' +
+        '</div>';
+    });
+    html += '<button class="add" data-new="shop">+ СВОЯ НАГРАДА</button></div>';
+    view.innerHTML = html;
+  }
+
+  function renderLog(){
+    var week = 0, weekAgo = Date.now() - 7 * 864e5;
+    S.log.forEach(function(e){ if (e.t > weekAgo && e.xp > 0) week += e.xp; });
+
+    var html = '<div class="tiles">' +
+      '<div class="frame"><div class="v" style="color:var(--exp)">' + num(S.hero.total) + '</div><div class="k">ВСЕГО EXP</div></div>' +
+      '<div class="frame"><div class="v" style="color:var(--hp)">' + (S.day.best || 0) + '</div><div class="k">ЛУЧШАЯ СЕРИЯ</div></div>' +
+      '<div class="frame"><div class="v" style="color:var(--coin)">' + num(week) + '</div><div class="k">EXP ЗА НЕДЕЛЮ</div></div>' +
+      '</div>';
+
+    if (!S.log.length) {
+      html += '<div class="empty">Тут будет всё, что ты сделал.<br>Закрой первый квест.</div>';
+      view.innerHTML = html; return;
+    }
+
+    var groups = [], last = null;
+    S.log.forEach(function(e){
+      var d = ymd(new Date(e.t));
+      if (d !== last) { groups.push({ day: d, items: [] }); last = d; }
+      groups[groups.length - 1].items.push(e);
+    });
+
+    groups.slice(0, 14).forEach(function(g){
+      html += '<div class="daygroup"><h3>' + humanDay(g.day) + '</h3>';
+      g.items.forEach(function(e){
+        var dt = new Date(e.t);
+        var tm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+        var bits = [];
+        if (e.xp) bits.push('<span style="color:var(--exp)">' + (e.xp > 0 ? '+' : '') + e.xp + '</span>');
+        if (e.coins) bits.push('<span style="color:var(--coin)">' + (e.coins > 0 ? '+' : '') + e.coins + '</span>');
+        html += '<div class="entry"><span class="tm">' + tm + '</span>' +
+          '<span class="tx">' + esc(e.text) + '</span>' +
+          '<span class="am">' + bits.join(' ') + '</span></div>';
+      });
+      html += '</div>';
+    });
+    view.innerHTML = html;
+  }
+
+  function render(){
+    renderHero();
+    if (tab === 'quests') renderQuests();
+    else if (tab === 'bosses') renderBosses();
+    else if (tab === 'shop') renderShop();
+    else renderLog();
+  }
+
+  /* ── окна ───────────────────────────────────────── */
+
+  var veil = null;
+  function openModal(title, inner, onMount){
+    closeModal();
+    veil = document.createElement('div');
+    veil.className = 'veil';
+    veil.innerHTML = '<div class="modal frame"><h2>' + title + '</h2>' + inner + '</div>';
+    veil.addEventListener('click', function(ev){ if (ev.target === veil) closeModal(); });
+    document.body.appendChild(veil);
+    if (onMount) onMount(veil);
+  }
+  function closeModal(){ if (veil) { veil.remove(); veil = null; } }
+
+  function statChips(sel){
+    return '<div class="chips">' + STAT_KEYS.map(function(k){
+      return '<button type="button" class="chip" data-stat="' + k + '" style="--cc:' + STATS[k].color + '" aria-pressed="' + (k === sel) + '">' + STATS[k].name + '</button>';
+    }).join('') + '</div>';
+  }
+  function chips(attr, values, sel, fmt){
+    return '<div class="chips">' + values.map(function(v){
+      return '<button type="button" class="chip" data-' + attr + '="' + v + '" aria-pressed="' + (v === sel) + '">' + (fmt ? fmt(v) : v) + '</button>';
+    }).join('') + '</div>';
+  }
+  function wire(root, attr, cb){
+    root.querySelectorAll('[data-' + attr + ']').forEach(function(b){
+      b.addEventListener('click', function(){
+        root.querySelectorAll('[data-' + attr + ']').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', 'true');
+        cb(b.getAttribute('data-' + attr));
+      });
+    });
+  }
+
+  function questModal(q){
+    var d = q ? { title: q.title, stat: q.stat, xp: q.xp } : { title: '', stat: 'body', xp: 25 };
+    openModal(q ? 'КВЕСТ' : 'НОВЫЙ КВЕСТ',
+      '<div class="field"><label>ЧТО ДЕЛАЕМ</label><input id="f-title" value="' + esc(d.title) + '" placeholder="Например: 20 отжиманий"></div>' +
+      '<div class="field"><label>ЧТО КАЧАЕТ</label>' + statChips(d.stat) + '</div>' +
+      '<div class="field"><label>БАЗОВАЯ НАГРАДА</label>' + chips('xp', [10,15,25,30,50,100], d.xp, function(v){ return v + ' EXP'; }) + '</div>' +
+      '<div class="acts">' + (q ? '<button class="hit kill" id="f-del">✕</button>' : '') +
+      '<button class="hit" id="f-cancel">Отмена</button><button class="hit gold" id="f-ok">Сохранить</button></div>',
+      function(r){
+        wire(r, 'stat', function(v){ d.stat = v; });
+        wire(r, 'xp', function(v){ d.xp = +v; });
+        r.querySelector('#f-cancel').onclick = closeModal;
+        r.querySelector('#f-ok').onclick = function(){
+          var t = r.querySelector('#f-title').value.trim();
+          if (!t) { r.querySelector('#f-title').focus(); return; }
+          if (q) { q.title = t; q.stat = d.stat; q.xp = d.xp; }
+          else S.quests.push({ id: 'q' + Date.now(), title: t, stat: d.stat, xp: d.xp, doneOn: null, streak: 0 });
+          closeModal(); render(); save();
+        };
+        if (q) r.querySelector('#f-del').onclick = function(){
+          S.quests = S.quests.filter(function(x){ return x.id !== q.id; });
+          closeModal(); render(); save();
+        };
+        if (!q) setTimeout(function(){ r.querySelector('#f-title').focus(); }, 60);
+      });
+  }
+
+  function bossModal(b){
+    var d = b ? { title: b.title, stat: b.stat, xp: b.xp, target: b.target, unit: b.unit }
+              : { title: '', stat: 'work', xp: 250, target: 100, unit: '' };
+    openModal(b ? 'БОСС' : 'НОВЫЙ БОСС',
+      '<div class="field"><label>ЦЕЛЬ</label><input id="f-title" value="' + esc(d.title) + '" placeholder="Например: 1000 подписчиков"></div>' +
+      '<div class="field"><label>СКОЛЬКО HP У БОССА</label><input id="f-target" type="number" inputmode="numeric" value="' + d.target + '"></div>' +
+      '<div class="field"><label>В ЧЁМ СЧИТАЕМ</label><input id="f-unit" value="' + esc(d.unit || '') + '" placeholder="подписчиков / тренировок / страниц"></div>' +
+      '<div class="field"><label>ЧТО КАЧАЕТ</label>' + statChips(d.stat) + '</div>' +
+      '<div class="field"><label>НАГРАДА</label>' + chips('xp', [100,250,500,1000], d.xp, function(v){ return v + ' EXP'; }) + '</div>' +
+      '<div class="acts">' + (b ? '<button class="hit kill" id="f-del">✕</button>' : '') +
+      '<button class="hit" id="f-cancel">Отмена</button><button class="hit gold" id="f-ok">Сохранить</button></div>',
+      function(r){
+        wire(r, 'stat', function(v){ d.stat = v; });
+        wire(r, 'xp', function(v){ d.xp = +v; });
+        r.querySelector('#f-cancel').onclick = closeModal;
+        r.querySelector('#f-ok').onclick = function(){
+          var t = r.querySelector('#f-title').value.trim();
+          var target = Math.max(1, parseInt(r.querySelector('#f-target').value, 10) || 1);
+          var unit = r.querySelector('#f-unit').value.trim();
+          if (!t) { r.querySelector('#f-title').focus(); return; }
+          if (b) { b.title = t; b.stat = d.stat; b.xp = d.xp; b.coins = Math.round(d.xp * 0.6); b.target = target; b.unit = unit; if (b.current < target) b.done = false; }
+          else S.bosses.push({ id: 'b' + Date.now(), title: t, stat: d.stat, xp: d.xp, coins: Math.round(d.xp * 0.6), target: target, current: 0, unit: unit, done: false });
+          closeModal(); render(); save();
+        };
+        if (b) r.querySelector('#f-del').onclick = function(){
+          S.bosses = S.bosses.filter(function(x){ return x.id !== b.id; });
+          closeModal(); render(); save();
+        };
+      });
+  }
+
+  function strikeModal(b, node){
+    openModal('УДАР ПО БОССУ',
+      '<div class="field"><label>' + esc(b.title).toUpperCase() + ' — ОСТАЛОСЬ ' + num(Math.max(0, b.target - b.current)) + '</label>' +
+      '<input id="p-amt" type="number" inputmode="numeric" placeholder="на сколько продвинулся"></div>' +
+      '<div class="chips" style="margin-bottom:4px">' +
+        [1,5,10,100].map(function(v){ return '<button type="button" class="chip" data-add="' + v + '">+' + v + '</button>'; }).join('') +
+      '</div>' +
+      '<div class="acts"><button class="hit" id="p-edit">Изменить</button><button class="hit gold" id="p-ok">Ударить</button></div>',
+      function(r){
+        var inp = r.querySelector('#p-amt');
+        r.querySelectorAll('[data-add]').forEach(function(b2){
+          b2.onclick = function(){ inp.value = (parseInt(inp.value, 10) || 0) + parseInt(b2.getAttribute('data-add'), 10); };
+        });
+        r.querySelector('#p-edit').onclick = function(){ closeModal(); bossModal(b); };
+        r.querySelector('#p-ok').onclick = function(){
+          var v = parseInt(inp.value, 10) || 0;
+          closeModal(); hitBoss(b, v, node);
+        };
+        setTimeout(function(){ inp.focus(); }, 60);
+      });
+  }
+
+  function shopModal(it){
+    var d = it ? { title: it.title, price: it.price } : { title: '', price: 300 };
+    openModal(it ? 'НАГРАДА' : 'СВОЯ НАГРАДА',
+      '<div class="field"><label>ЧТО СЕБЕ КУПИШЬ</label><input id="f-title" value="' + esc(d.title) + '" placeholder="Например: вечер сериалов"></div>' +
+      '<div class="field"><label>ЦЕНА В МОНЕТАХ</label><input id="f-price" type="number" inputmode="numeric" value="' + d.price + '"></div>' +
+      '<div class="acts">' + (it && it.kind === 'own' ? '<button class="hit kill" id="f-del">✕</button>' : '') +
+      '<button class="hit" id="f-cancel">Отмена</button><button class="hit gold" id="f-ok">Сохранить</button></div>',
+      function(r){
+        r.querySelector('#f-cancel').onclick = closeModal;
+        r.querySelector('#f-ok').onclick = function(){
+          var t = r.querySelector('#f-title').value.trim();
+          var p = Math.max(1, parseInt(r.querySelector('#f-price').value, 10) || 1);
+          if (!t) { r.querySelector('#f-title').focus(); return; }
+          if (it) { it.title = t; it.price = p; }
+          else S.shop.push({ id: 's' + Date.now(), title: t, price: p, kind: 'own' });
+          closeModal(); render(); save();
+        };
+        if (it && it.kind === 'own') r.querySelector('#f-del').onclick = function(){
+          S.shop = S.shop.filter(function(x){ return x.id !== it.id; });
+          closeModal(); render(); save();
+        };
+      });
+  }
+
+  function menuModal(){
+    openModal('ПРОКАЧКА',
+      '<div class="menu">' +
+        '<button id="m-name">Имя героя</button>' +
+        '<button id="m-sound">Звук: ' + (S.sound ? 'вкл' : 'выкл') + '</button>' +
+        '<button id="m-export">Сохранить бэкап</button>' +
+        '<button id="m-import">Загрузить бэкап</button>' +
+        '<button id="m-reset" class="warn">Начать заново</button>' +
+        '<button id="m-close">Закрыть</button>' +
+      '</div>',
+      function(r){
+        r.querySelector('#m-close').onclick = closeModal;
+        r.querySelector('#m-sound').onclick = function(){ S.sound = !S.sound; save(); closeModal(); toast('Звук ' + (S.sound ? 'включён' : 'выключен')); };
+        r.querySelector('#m-name').onclick = function(){
+          openModal('ИМЯ ГЕРОЯ',
+            '<div class="field"><input id="n-name" value="' + esc(S.hero.name) + '" maxlength="16"></div>' +
+            '<div class="acts"><button class="hit" id="n-cancel">Отмена</button><button class="hit gold" id="n-ok">Сохранить</button></div>',
+            function(r2){
+              r2.querySelector('#n-cancel').onclick = closeModal;
+              r2.querySelector('#n-ok').onclick = function(){
+                var v = r2.querySelector('#n-name').value.trim();
+                if (v) S.hero.name = v.toUpperCase();
+                closeModal(); render(); save();
+              };
+              setTimeout(function(){ r2.querySelector('#n-name').focus(); }, 60);
+            });
+        };
+        r.querySelector('#m-export').onclick = function(){ closeModal(); exportData(); };
+        r.querySelector('#m-import').onclick = function(){ closeModal(); importData(); };
+        r.querySelector('#m-reset').onclick = function(){
+          openModal('НАЧАТЬ ЗАНОВО',
+            '<div class="empty" style="padding:0 0 6px;text-align:left">Уровень, монеты, серии и журнал обнулятся. Отменить нельзя — сначала лучше сохранить бэкап.</div>' +
+            '<div class="acts"><button class="hit" id="r-cancel">Отмена</button><button class="hit" id="r-ok" style="color:var(--hp)">Обнулить</button></div>',
+            function(r2){
+              r2.querySelector('#r-cancel').onclick = closeModal;
+              r2.querySelector('#r-ok').onclick = function(){
+                var n = S.hero.name;
+                S = seed(); S.hero.name = n;
+                closeModal(); render(); save(); toast('Чистый лист');
+              };
+            });
+        };
+      });
+  }
+
+  function exportData(){
+    var json = JSON.stringify(S, null, 2);
+    var name = 'prokachka-' + ymd() + '.json';
+    if (window.claude && window.claude.downloads && window.claude.downloads.save) {
+      window.claude.downloads.save({ filename: name, data: json })
+        .then(function(){ toast('Бэкап сохранён'); })
+        .catch(function(){ toast('Сохранение отменено'); });
+      return;
+    }
+    try {
+      var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      toast('Бэкап сохранён');
+    } catch (e) {
+      openModal('БЭКАП', '<div class="field"><label>СКОПИРУЙ И СОХРАНИ</label><textarea readonly>' + esc(json) + '</textarea></div>' +
+        '<div class="acts"><button class="hit gold" id="x-ok">Готово</button></div>',
+        function(r){ r.querySelector('#x-ok').onclick = closeModal; });
+    }
+  }
+
+  function importData(){
+    openModal('ЗАГРУЗИТЬ БЭКАП',
+      '<div class="field"><label>ВСТАВЬ СЮДА СОДЕРЖИМОЕ ФАЙЛА</label><textarea id="i-data" placeholder="{ ... }"></textarea></div>' +
+      '<div class="acts"><button class="hit" id="i-cancel">Отмена</button><button class="hit gold" id="i-ok">Загрузить</button></div>',
+      function(r){
+        r.querySelector('#i-cancel').onclick = closeModal;
+        r.querySelector('#i-ok').onclick = function(){
+          try {
+            var d = JSON.parse(r.querySelector('#i-data').value);
+            if (!d || !d.hero || !d.quests) throw new Error('bad');
+            var base = seed();
+            for (var k in base) if (!(k in d)) d[k] = base[k];
+            S = d;
+            closeModal(); render(); save(); toast('Прогресс на месте');
+          } catch (e) { toast('Это не похоже на бэкап'); }
+        };
+      });
+  }
+
+  /* ── события ────────────────────────────────────── */
+
+  document.querySelectorAll('.tabs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      tab = b.getAttribute('data-tab');
+      document.querySelectorAll('.tabs button').forEach(function(x){ x.setAttribute('aria-selected', String(x === b)); });
+      render();
+    });
+  });
+
+  el('gear').addEventListener('click', menuModal);
+
+  var timer = null, longPressed = false;
+  view.addEventListener('pointerdown', function(ev){
+    var card = ev.target.closest('[data-q],[data-b],[data-s]');
+    if (!card) return;
+    longPressed = false;
+    timer = setTimeout(function(){
+      longPressed = true;
+      buzz(14);
+      var id;
+      if ((id = card.getAttribute('data-q'))) questModal(find(S.quests, id));
+      else if ((id = card.getAttribute('data-b'))) bossModal(find(S.bosses, id));
+      else if ((id = card.getAttribute('data-s'))) {
+        var it = find(S.shop, id);
+        if (it.kind === 'own') shopModal(it); else longPressed = false;
+      }
+      if (veil) {
+        veil.style.pointerEvents = 'none';
+        setTimeout(function(){ if (veil) veil.style.pointerEvents = ''; }, 420);
+      }
+    }, 520);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(t){
+    view.addEventListener(t, function(){ clearTimeout(timer); });
+  });
+  window.addEventListener('scroll', function(){ clearTimeout(timer); }, { passive: true });
+
+  function find(arr, id){ return arr.filter(function(x){ return x.id === id; })[0]; }
+
+  view.addEventListener('click', function(ev){
+    if (longPressed) { longPressed = false; return; }
+
+    var add = ev.target.closest('[data-new]');
+    if (add) {
+      var w = add.getAttribute('data-new');
+      if (w === 'boss') bossModal(null); else if (w === 'shop') shopModal(null); else questModal(null);
+      return;
+    }
+
+    var btn = ev.target.closest('.hit');
+    if (!btn) return;
+    var card = btn.closest('[data-q],[data-b],[data-s]');
+    if (!card) return;
+
+    var id;
+    if ((id = card.getAttribute('data-q'))) {
+      var q = find(S.quests, id);
+      if (!q) return;
+      if (q.doneOn === ymd()) unstrike(q); else strike(q, card);
+    } else if ((id = card.getAttribute('data-b'))) {
+      var b = find(S.bosses, id);
+      if (!b) return;
+      if (b.done) bossModal(b); else strikeModal(b, card);
+    } else if ((id = card.getAttribute('data-s'))) {
+      var it = find(S.shop, id);
+      if (it) buy(it, card);
+    }
+  });
+
+  document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') closeModal(); });
+
+  var mountedDay = ymd();
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && ymd() !== mountedDay) { mountedDay = ymd(); applyMissedDays(); render(); showIntro(); }
+  });
+
+  /* ── старт ──────────────────────────────────────── */
+
+  function showIntro(){
+    if (!pendingIntro) return;
+    var p = pendingIntro; pendingIntro = null;
+    if (p.kind === 'shield') { SFX.buy(); bigMessage('ОБЕРЕГ СРАБОТАЛ', 'СЕРИЯ ЦЕЛА', 'пропуск прощён'); }
+    else if (p.kind === 'fell') { SFX.hurt(); shakeScreen(); bigMessage('ТЫ ПАЛ', '-' + p.dmg + ' HP', 'серия сброшена, часть опыта потеряна', 'var(--hp)'); }
+    else { SFX.hurt(); shakeScreen(); bigMessage('ПРОПУСК', '-' + p.dmg + ' HP', p.days + ' ' + plural(p.days, 'день', 'дня', 'дней') + ' без квестов', 'var(--hp)'); }
+  }
+
+  function showBootError(err){
+    var n = document.createElement('div');
+    n.className = 'warnbar';
+    n.textContent = 'Сохранённый прогресс не открылся, начали заново. Причина: ' + (err && err.message ? err.message : err);
+    document.getElementById('app').appendChild(n);
+  }
+
+  try {
+    applyMissedDays();
+    render();
+    setTimeout(showIntro, 400);
+  } catch (err) {
+    try { localStorage.setItem(KEY + '.broken', localStorage.getItem(KEY) || ''); } catch (e) {}
+    S = seed();
+    render();
+    save();
+    showBootError(err);
+  }
+})();
+</script>
