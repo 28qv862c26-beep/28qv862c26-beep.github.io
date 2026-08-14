@@ -329,6 +329,49 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
   box-shadow: inset 2px 2px 0 0 #6A2635, inset -2px -2px 0 0 var(--edge-lo);
 }
 
+/* ─── набор готовых квестов ──────────────────────── */
+
+.addrow{ display: flex; gap: 6px; }
+.addrow .add{ flex: 1; }
+
+.libgroup{
+  margin: 14px 0 6px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+}
+.libgroup:first-child{ margin-top: 0; }
+
+.pick{
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left;
+  padding: 10px 11px; margin-bottom: 4px;
+  background: #171B36;
+  border-left: 3px solid var(--sc);
+  box-shadow: inset 1px 1px 0 0 #2E3568, inset -1px -1px 0 0 var(--edge-lo);
+}
+.pick .pk-box{
+  flex: none; width: 16px; height: 16px;
+  background: #0D1024;
+  box-shadow: inset 1px 1px 0 0 var(--edge-lo), inset -1px -1px 0 0 #2E3568;
+}
+.pick[aria-pressed="true"]{ background: var(--panel-2); }
+.pick[aria-pressed="true"] .pk-box{ background: var(--exp); box-shadow: none; }
+.pick .pk-t{ flex: 1; font-size: 13.5px; line-height: 1.25; }
+.pick .pk-x{
+  flex: none; font-family: var(--mono); font-size: 11px; color: var(--exp);
+  font-variant-numeric: tabular-nums;
+}
+.pick[disabled]{ opacity: .4; }
+.pick[disabled] .pk-x{ color: var(--dim); }
+
+.libbar{
+  position: sticky; bottom: 0;
+  margin: 12px -16px -16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  box-shadow: 0 -2px 0 0 var(--edge-lo);
+}
+.libbar .acts{ margin-top: 0; }
+
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{ animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
@@ -406,6 +449,50 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
     { at: 15, name: 'МАСТЕР',     armor: ['#C9A227', '#F3D35C', '#8A6B12'], plume: '#FF7A45' },
     { at: 25, name: 'ЧЕМПИОН',    armor: ['#9B4DE0', '#C68BFF', '#632E92'], plume: '#FF5BD0' },
     { at: 40, name: 'ЛЕГЕНДА',    armor: ['#FF5B5B', '#FF9A6B', '#A62F3C'], plume: '#FFD34E' }
+  ];
+
+  // готовый набор, из которого можно набрать себе квесты в пару тапов.
+  // намеренно общие формулировки: под любое дело, а не под конкретный проект
+  var LIBRARY = [
+    ['Тренировка',                          'body',   25],
+    ['10 000 шагов',                        'body',   25],
+    ['Лечь до часу ночи',                   'body',   15],
+    ['Растяжка десять минут',               'body',   15],
+    ['Холодный душ до конца',               'body',   20],
+    ['День без сахара',                     'body',   30],
+    ['Не есть после десяти',                'body',   20],
+    ['50 отжиманий за день',                'body',   20],
+
+    ['10 страниц книги',                    'mind',   15],
+    ['Пять новых слов на языке',            'mind',   15],
+    ['Разобраться в незнакомой штуке',      'mind',   25],
+    ['Пять строк конспекта: что узнал',     'mind',   15],
+    ['Лекция или доку вместо ленты',        'mind',   20],
+    ['Одна задачка на голову',              'mind',   10],
+
+    ['Час работы без телефона',             'work',   30],
+    ['Записать идею, пока не сбежала',      'work',   15],
+    ['Добить то, что откладываешь неделю',  'work',   50],
+    ['Одна мелкая задача из «потом»',       'work',   20],
+    ['Разобрать входящие до нуля',          'work',   15],
+    ['Посчитать цифры своего дела',         'work',   15],
+    ['Один трудный звонок',                 'work',   20],
+    ['Украсть один приём у того, кто лучше','work',   15],
+
+    ['Утро без ленты',                      'soul',   15],
+    ['После одиннадцати телефон не трогаю', 'soul',   25],
+    ['Десять минут тишины',                 'soul',   15],
+    ['Три строчки: за что сегодня не стыдно','soul',  15],
+    ['День без жалоб вслух',                'soul',   25],
+    ['Прогулка без наушников',              'soul',   15],
+    ['Выкинуть одну ненужную вещь',         'soul',   10],
+
+    ['Написать своим',                      'people', 10],
+    ['Позвонить родителям',                 'people', 20],
+    ['Встретиться вживую, не в переписке',  'people', 30],
+    ['Честный комплимент вслух',            'people', 10],
+    ['Поблагодарить за конкретное',         'people', 10],
+    ['Написать тому, с кем давно молчим',   'people', 15]
   ];
 
   var HERO_NEED = function(l){ return 100 + 60 * (l - 1); };
@@ -936,7 +1023,10 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
         '</div>';
     });
 
-    html += '<button class="add" data-new="quest">+ НОВЫЙ КВЕСТ</button></div>';
+    html += '<div class="addrow">' +
+      '<button class="add" data-new="quest">+ СВОЙ КВЕСТ</button>' +
+      '<button class="add" data-new="lib">ГОТОВЫЕ</button>' +
+      '</div></div>';
     if (!storageOk) html += '<div class="warnbar">Тут браузер не даёт сохранять прогресс. Открой страницу в обычной вкладке Safari или Chrome.</div>';
     view.innerHTML = html;
   }
@@ -1086,6 +1176,62 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
           closeModal(); render(); save();
         };
         if (!q) setTimeout(function(){ r.querySelector('#f-title').focus(); }, 60);
+      });
+  }
+
+  function libraryModal(){
+    var есть = {};
+    S.quests.forEach(function(q){ есть[q.title.toLowerCase()] = true; });
+
+    var html = '', last = null;
+    LIBRARY.forEach(function(row, i){
+      var title = row[0], stat = row[1], xp = row[2];
+      if (stat !== last) {
+        last = stat;
+        html += '<div class="libgroup" style="color:' + STATS[stat].color + '">' + STATS[stat].name + '</div>';
+      }
+      var добавлен = есть[title.toLowerCase()];
+      html += '<button type="button" class="pick" data-i="' + i + '" aria-pressed="false"' +
+        (добавлен ? ' disabled' : '') + ' style="--sc:' + STATS[stat].color + '">' +
+        '<span class="pk-box"></span>' +
+        '<span class="pk-t">' + esc(title) + '</span>' +
+        '<span class="pk-x">' + (добавлен ? 'уже есть' : '+' + xp) + '</span>' +
+      '</button>';
+    });
+
+    openModal('ГОТОВЫЕ КВЕСТЫ', html +
+      '<div class="libbar"><div class="acts">' +
+      '<button class="hit" id="l-cancel">Отмена</button>' +
+      '<button class="hit gold" id="l-ok">Добавить</button>' +
+      '</div></div>',
+      function(r){
+        var выбрано = {};
+        var кнопка = r.querySelector('#l-ok');
+        function обновить(){
+          var n = Object.keys(выбрано).length;
+          кнопка.textContent = n ? 'Добавить ' + n : 'Добавить';
+        }
+        r.querySelectorAll('.pick').forEach(function(b){
+          if (b.disabled) return;
+          b.onclick = function(){
+            var i = b.getAttribute('data-i');
+            if (выбрано[i]) { delete выбрано[i]; b.setAttribute('aria-pressed', 'false'); }
+            else { выбрано[i] = true; b.setAttribute('aria-pressed', 'true'); }
+            обновить();
+          };
+        });
+        r.querySelector('#l-cancel').onclick = closeModal;
+        кнопка.onclick = function(){
+          var ключи = Object.keys(выбрано);
+          if (!ключи.length) { closeModal(); return; }
+          ключи.forEach(function(i, n){
+            var row = LIBRARY[+i];
+            S.quests.push({ id: 'q' + Date.now() + n, title: row[0], stat: row[1], xp: row[2], doneOn: null, streak: 0 });
+          });
+          closeModal(); render(); save();
+          SFX.buy();
+          toast('Добавлено квестов: ' + ключи.length);
+        };
       });
   }
 
@@ -1302,7 +1448,10 @@ button{ touch-action: manipulation; cursor: pointer; border: 0; background: none
     var add = ev.target.closest('[data-new]');
     if (add) {
       var w = add.getAttribute('data-new');
-      if (w === 'boss') bossModal(null); else if (w === 'shop') shopModal(null); else questModal(null);
+      if (w === 'boss') bossModal(null);
+      else if (w === 'shop') shopModal(null);
+      else if (w === 'lib') libraryModal();
+      else questModal(null);
       return;
     }
 
